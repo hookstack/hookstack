@@ -27,6 +27,10 @@ const (
 	SELECT * FROM convoy.organisations
 	WHERE deleted_at IS NULL
 	`
+	fetchOrganisationByProjectId = `
+	SELECT * FROM convoy.organisations
+	WHERE deleted_at IS NULL AND id=(SELECT organisation_id FROM convoy.projects WHERE id=$1)
+	`
 
 	fetchOrganisationsPaged = `
 	SELECT * FROM convoy.organisations WHERE deleted_at IS NULL
@@ -272,6 +276,19 @@ func (o *orgRepo) FetchOrganisationByAssignedDomain(ctx context.Context, domain 
 func (o *orgRepo) FetchOrganisationByCustomDomain(ctx context.Context, domain string) (*datastore.Organisation, error) {
 	org := &datastore.Organisation{}
 	err := o.db.GetReadDB().QueryRowxContext(ctx, fmt.Sprintf("%s AND custom_domain = $1", fetchOrganisation), domain).StructScan(org)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, datastore.ErrOrgNotFound
+		}
+		return nil, err
+	}
+
+	return org, nil
+}
+
+func (o *orgRepo) FetchOrganisationByProjectID(ctx context.Context, id string) (*datastore.Organisation, error) {
+	org := &datastore.Organisation{}
+	err := o.db.GetDB().QueryRowxContext(ctx, fetchOrganisationByProjectId, id).StructScan(org)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, datastore.ErrOrgNotFound

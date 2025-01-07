@@ -289,6 +289,7 @@ var (
 		Strategy:               &DefaultStrategyConfig,
 		Signature:              GetDefaultSignatureConfig(),
 		MetaEvent:              &MetaEventConfiguration{IsEnabled: false},
+		CircuitBreakerConfig:   &DefaultCircuitBreakerConfiguration,
 	}
 
 	DefaultSSLConfig = SSLConfiguration{EnforceSecureEndpoints: true}
@@ -332,6 +333,7 @@ var (
 		FailureThreshold:            70,
 		SuccessThreshold:            5,
 		ObservabilityWindow:         5,
+		MinimumRequestCount:         10,
 		ConsecutiveFailureThreshold: 10,
 	}
 )
@@ -552,6 +554,7 @@ type ProjectConfig struct {
 	Strategy                      *StrategyConfiguration  `json:"strategy" db:"strategy"`
 	Signature                     *SignatureConfiguration `json:"signature" db:"signature"`
 	MetaEvent                     *MetaEventConfiguration `json:"meta_event" db:"meta_event"`
+	CircuitBreakerConfig          *CircuitBreakerConfig   `json:"circuit_breaker" db:"circuit_breaker"`
 }
 
 func (p *ProjectConfig) GetRateLimitConfig() RateLimitConfiguration {
@@ -588,6 +591,13 @@ func (p *ProjectConfig) GetMetaEventConfig() MetaEventConfiguration {
 	}
 
 	return MetaEventConfiguration{}
+}
+
+func (p *ProjectConfig) GetCircuitBreakerConfig() CircuitBreakerConfig {
+	if p.CircuitBreakerConfig != nil {
+		return *p.CircuitBreakerConfig
+	}
+	return CircuitBreakerConfig{}
 }
 
 type RateLimitConfiguration struct {
@@ -1349,15 +1359,18 @@ type Configuration struct {
 	IsAnalyticsEnabled bool   `json:"is_analytics_enabled" db:"is_analytics_enabled"`
 	IsSignupEnabled    bool   `json:"is_signup_enabled" db:"is_signup_enabled"`
 
-	StoragePolicy        *StoragePolicyConfiguration   `json:"storage_policy" db:"storage_policy"`
-	RetentionPolicy      *RetentionPolicyConfiguration `json:"retention_policy" db:"retention_policy"`
-	CircuitBreakerConfig *CircuitBreakerConfig         `json:"circuit_breaker" db:"circuit_breaker"`
+	StoragePolicy *StoragePolicyConfiguration `json:"storage_policy" db:"storage_policy"`
+	// Deprecated
+	RetentionPolicy *RetentionPolicyConfiguration `json:"retention_policy" db:"retention_policy"`
+	// Deprecated
+	CircuitBreakerConfig *CircuitBreakerConfig `json:"circuit_breaker" db:"circuit_breaker"`
 
 	CreatedAt time.Time `json:"created_at,omitempty" db:"created_at,omitempty" swaggertype:"string"`
 	UpdatedAt time.Time `json:"updated_at,omitempty" db:"updated_at,omitempty" swaggertype:"string"`
 	DeletedAt null.Time `json:"deleted_at,omitempty" db:"deleted_at" swaggertype:"string"`
 }
 
+// Deprecated
 func (c *Configuration) GetCircuitBreakerConfig() CircuitBreakerConfig {
 	if c.CircuitBreakerConfig != nil {
 		return *c.CircuitBreakerConfig
@@ -1365,6 +1378,7 @@ func (c *Configuration) GetCircuitBreakerConfig() CircuitBreakerConfig {
 	return CircuitBreakerConfig{}
 }
 
+// Deprecated
 func (c *Configuration) ToCircuitBreakerConfig() *cb.CircuitBreakerConfig {
 	return &cb.CircuitBreakerConfig{
 		SampleRate:                  c.CircuitBreakerConfig.SampleRate,
@@ -1377,6 +1391,7 @@ func (c *Configuration) ToCircuitBreakerConfig() *cb.CircuitBreakerConfig {
 	}
 }
 
+// Deprecated
 func (c *Configuration) GetRetentionPolicyConfig() RetentionPolicyConfiguration {
 	if c.RetentionPolicy != nil {
 		return *c.RetentionPolicy
@@ -1522,6 +1537,29 @@ type PortalLink struct {
 	EndpointsMetadata EndpointMetadata `json:"endpoints_metadata" db:"endpoints_metadata"`
 	EndpointCount     int              `json:"endpoint_count" db:"endpoint_count"`
 	CanManageEndpoint bool             `json:"can_manage_endpoint" db:"can_manage_endpoint"`
+
+	CreatedAt time.Time `json:"created_at,omitempty" db:"created_at,omitempty" swaggertype:"string"`
+	UpdatedAt time.Time `json:"updated_at,omitempty" db:"updated_at,omitempty" swaggertype:"string"`
+	DeletedAt null.Time `json:"deleted_at,omitempty" db:"deleted_at,omitempty" swaggertype:"string"`
+}
+
+type InstanceDefaults struct {
+	UID          string `json:"uid" db:"id"`
+	ScopeType    string `json:"scope_type" db:"scope_type"`
+	Key          string `json:"key" db:"key"`
+	DefaultValue string `json:"default_value" db:"default_value_cipher"`
+
+	CreatedAt time.Time `json:"created_at,omitempty" db:"created_at,omitempty" swaggertype:"string"`
+	UpdatedAt time.Time `json:"updated_at,omitempty" db:"updated_at,omitempty" swaggertype:"string"`
+	DeletedAt null.Time `json:"deleted_at,omitempty" db:"deleted_at,omitempty" swaggertype:"string"`
+}
+
+type InstanceOverrides struct {
+	UID       string `json:"uid" db:"id"`
+	ScopeType string `json:"scope_type" db:"scope_type"`
+	ScopeID   string `json:"scope_id" db:"scope_id"`
+	Key       string `json:"key" db:"key"`
+	Value     string `json:"value_cipher" db:"value_cipher"`
 
 	CreatedAt time.Time `json:"created_at,omitempty" db:"created_at,omitempty" swaggertype:"string"`
 	UpdatedAt time.Time `json:"updated_at,omitempty" db:"updated_at,omitempty" swaggertype:"string"`
