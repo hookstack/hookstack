@@ -139,6 +139,17 @@ func (a *ApplicationHandler) BuildControlPlaneRoutes() *chi.Mux {
 			r.Use(middleware.JsonResponse)
 			r.Use(middleware.RequireAuth())
 
+			r.Route("/organisations", func(orgRouter chi.Router) {
+				orgRouter.Post("/", handler.CreateOrganisation)
+				orgRouter.With(middleware.Pagination).Get("/", handler.GetOrganisationsPaged)
+
+				orgRouter.Route("/{orgID}", func(orgSubRouter chi.Router) {
+					orgSubRouter.Get("/", handler.GetOrganisation)
+					orgSubRouter.Put("/", handler.UpdateOrganisation)
+					orgSubRouter.Delete("/", handler.DeleteOrganisation)
+				})
+			})
+
 			r.Route("/projects", func(projectRouter chi.Router) {
 				projectRouter.Use(middleware.RateLimiterHandler(a.A.Rate, a.cfg.ApiRateLimit))
 				projectRouter.Get("/", handler.GetProjects)
@@ -254,6 +265,19 @@ func (a *ApplicationHandler) BuildControlPlaneRoutes() *chi.Mux {
 	router.Route("/ui", func(uiRouter chi.Router) {
 		uiRouter.Use(middleware.JsonResponse)
 		uiRouter.Use(chiMiddleware.Maybe(middleware.RequireAuth(), shouldAuthRoute))
+
+		uiRouter.Route("/god-mode/configs", func(godModeRouter chi.Router) {
+			godModeRouter.Use(middleware.RequireInstanceAdmin(handler.A))
+
+			godModeRouter.Route("/overrides", func(overridesRouter chi.Router) {
+				overridesRouter.With(middleware.Pagination).Get("/", handler.GetInstanceOverridesPaged)
+				overridesRouter.Post("/", handler.CreateInstanceOverrides)
+				overridesRouter.Route("/{configID}", func(configSubRouter chi.Router) {
+					configSubRouter.Get("/", handler.GetInstanceOverrides)
+					configSubRouter.Put("/", handler.UpdateInstanceOverrides)
+				})
+			})
+		})
 
 		uiRouter.Get("/license/features", handler.GetLicenseFeatures)
 
@@ -703,11 +727,27 @@ func (a *ApplicationHandler) RegisterPolicy() error {
 	var err error
 
 	err = a.A.Authz.RegisterPolicy(func() authz.Policy {
+		po := &policies.UserPolicy{
+			BasePolicy:             authz.NewBasePolicy(),
+			OrganisationMemberRepo: postgres.NewOrgMemberRepo(a.A.DB),
+		}
+
+		po.SetRule("god-mode", authz.RuleFunc(po.GodMode))
+
+		return po
+	}())
+
+	if err != nil {
+		return err
+	}
+
+	err = a.A.Authz.RegisterPolicy(func() authz.Policy {
 		po := &policies.OrganisationPolicy{
 			BasePolicy:             authz.NewBasePolicy(),
 			OrganisationMemberRepo: postgres.NewOrgMemberRepo(a.A.DB),
 		}
 
+		po.SetRule("manage.all", authz.RuleFunc(po.ManageAll))
 		po.SetRule("manage", authz.RuleFunc(po.Manage))
 
 		return po
