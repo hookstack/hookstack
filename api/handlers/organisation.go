@@ -62,12 +62,18 @@ func (h *Handler) CreateOrganisation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err = h.A.Authz.Authorize(r.Context(), "organisation.manage.all", user); err != nil {
+		_ = render.Render(w, r, util.NewErrorResponse("Unauthorized", http.StatusForbidden))
+		return
+	}
+
 	co := services.CreateOrganisationService{
-		OrgRepo:       postgres.NewOrgRepo(h.A.DB),
-		OrgMemberRepo: postgres.NewOrgMemberRepo(h.A.DB),
-		NewOrg:        &newOrg,
-		User:          user,
-		Licenser:      h.A.Licenser,
+		OrgRepo:               postgres.NewOrgRepo(h.A.DB),
+		OrgMemberRepo:         postgres.NewOrgMemberRepo(h.A.DB),
+		InstanceOverridesRepo: postgres.NewInstanceOverridesRepo(h.A.DB),
+		NewOrg:                &newOrg,
+		User:                  user,
+		Licenser:              h.A.Licenser,
 	}
 
 	organisation, err := co.Run(r.Context())
@@ -99,10 +105,11 @@ func (h *Handler) UpdateOrganisation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	us := services.UpdateOrganisationService{
-		OrgRepo:       postgres.NewOrgRepo(h.A.DB),
-		OrgMemberRepo: postgres.NewOrgMemberRepo(h.A.DB),
-		Org:           org,
-		Update:        &orgUpdate,
+		OrgRepo:               postgres.NewOrgRepo(h.A.DB),
+		OrgMemberRepo:         postgres.NewOrgMemberRepo(h.A.DB),
+		InstanceOverridesRepo: postgres.NewInstanceOverridesRepo(h.A.DB),
+		Org:                   org,
+		Update:                &orgUpdate,
 	}
 
 	org, err = us.Run(r.Context())
@@ -121,7 +128,7 @@ func (h *Handler) DeleteOrganisation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = h.A.Authz.Authorize(r.Context(), "organisation.manage", org); err != nil {
+	if err = h.A.Authz.Authorize(r.Context(), "organisation.manage.all", org); err != nil {
 		_ = render.Render(w, r, util.NewErrorResponse("Unauthorized", http.StatusForbidden))
 		return
 	}

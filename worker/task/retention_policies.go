@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/frain-dev/convoy/database"
 	"github.com/frain-dev/convoy/internal/pkg/retention"
 	"time"
 
@@ -19,7 +20,7 @@ import (
 	"github.com/hibiken/asynq"
 )
 
-func BackupProjectData(configRepo datastore.ConfigurationRepository, projectRepo datastore.ProjectRepository, eventRepo datastore.EventRepository, eventDeliveryRepo datastore.EventDeliveryRepository, attemptsRepo datastore.DeliveryAttemptsRepository, rd *rdb.Redis) func(context.Context, *asynq.Task) error {
+func BackupProjectData(db database.Database, configRepo datastore.ConfigurationRepository, projectRepo datastore.ProjectRepository, eventRepo datastore.EventRepository, eventDeliveryRepo datastore.EventDeliveryRepository, attemptsRepo datastore.DeliveryAttemptsRepository, rd *rdb.Redis) func(context.Context, *asynq.Task) error {
 	pool := goredis.NewPool(rd.Client())
 	rs := redsync.New(pool)
 
@@ -66,7 +67,7 @@ func BackupProjectData(configRepo datastore.ConfigurationRepository, projectRepo
 		}
 
 		for _, p := range projects {
-			e, innerErr := exporter.NewExporter(projectRepo, eventRepo, eventDeliveryRepo, p, config, attemptsRepo)
+			e, innerErr := exporter.NewExporter(ctx, db, projectRepo, eventRepo, eventDeliveryRepo, p, config, attemptsRepo)
 			if innerErr != nil {
 				return innerErr
 			}
