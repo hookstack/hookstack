@@ -114,6 +114,14 @@ func (r *RetentionPoliciesIntegrationTestSuite) Test_Should_Export_Two_Documents
 		SSL:           &datastore.DefaultSSLConfig,
 		RateLimit:     &datastore.DefaultRateLimitConfig,
 		ReplayAttacks: true,
+		CircuitBreakerConfig: &datastore.CircuitBreakerConfig{
+			SampleRate:                  2,
+			ErrorTimeout:                30,
+			FailureThreshold:            10,
+			SuccessThreshold:            1,
+			ObservabilityWindow:         5,
+			ConsecutiveFailureThreshold: 10,
+		},
 	}
 	project, err := testdb.SeedProject(r.ConvoyApp.database, ulid.Make().String(), "test", r.DefaultOrg.UID, datastore.OutgoingProject, projectConfig)
 	require.NoError(r.T(), err)
@@ -213,7 +221,7 @@ func (r *RetentionPoliciesIntegrationTestSuite) Test_Should_Export_Two_Documents
 
 	clock.AdvanceTime(duration + time.Hour)
 
-	err = BackupProjectData(
+	err = BackupProjectData(r.DB,
 		r.ConvoyApp.configRepo,
 		r.ConvoyApp.projectRepo,
 		r.ConvoyApp.eventRepo,

@@ -553,7 +553,6 @@ func (e *eventRepo) LoadEventsPaged(ctx context.Context, projectID string, filte
 		events = append(events, data)
 	}
 
-
 	var rowCount datastore.PrevRowCount
 	if len(events) > 0 {
 		first := events[0]

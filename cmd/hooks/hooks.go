@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/frain-dev/convoy/auth"
 	"github.com/frain-dev/convoy/internal/pkg/tracer"
 	"io"
 	"os"
@@ -161,6 +162,11 @@ func PreRun(app *cli.App, db *postgres.Postgres) func(cmd *cobra.Command, args [
 		app.Queue = q
 		app.Logger = lo
 		app.Cache = ca
+
+		err = ensureRootUser(context.Background(), app)
+		if err != nil {
+			return err
+		}
 
 		if ok := shouldBootstrap(cmd); ok {
 			err = ensureDefaultUser(context.Background(), app)
@@ -786,6 +792,75 @@ func shouldBootstrap(cmd *cobra.Command) bool {
 	}
 
 	return false
+}
+
+func ensureRootUser(ctx context.Context, a *cli.App) error {
+	userRepo := postgres.NewUserRepo(a.DB)
+	orgRepo := postgres.NewOrgRepo(a.DB)
+	orgMemberRepo := postgres.NewOrgMemberRepo(a.DB)
+
+	count, err := orgMemberRepo.CountRootUsers(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to count root admins: %w", err)
+	}
+
+	if count > 0 {
+		return nil
+	}
+
+	p := datastore.Password{Plaintext: "default"}
+	err = p.GenerateHash()
+
+	if err != nil {
+		return err
+	}
+
+	root := &datastore.User{
+		UID:           ulid.Make().String(),
+		FirstName:     "root",
+		LastName:      "root",
+		Email:         "root@default.com",
+		Password:      string(p.Hash),
+		EmailVerified: true,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+	}
+
+	err = userRepo.CreateUser(ctx, root)
+	if err != nil {
+		return fmt.Errorf("failed to create root users - %w", err)
+	}
+
+	org := &datastore.Organisation{
+		UID:       ulid.Make().String(),
+		OwnerID:   root.UID,
+		Name:      "Root Org",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	err = orgRepo.CreateOrganisation(ctx, org)
+	if err != nil {
+		return err
+	}
+
+	member := &datastore.OrganisationMember{
+		UID:            ulid.Make().String(),
+		OrganisationID: org.UID,
+		UserID:         root.UID,
+		Role:           auth.Role{Type: auth.RoleRoot},
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
+	}
+
+	err = orgMemberRepo.CreateOrganisationMember(ctx, member)
+	if err != nil {
+		return err
+	}
+
+	a.Logger.Infof("Created root user with username: %s and password: %s", root.Email, p.Plaintext)
+
+	return nil
 }
 
 func ensureDefaultUser(ctx context.Context, a *cli.App) error {

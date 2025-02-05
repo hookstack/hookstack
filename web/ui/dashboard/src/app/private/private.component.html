@@ -47,7 +47,7 @@
 						</ul>
 
 						<li class="border-t border-t-neutral-a3 relative">
-							<button convoy-dropdown-option convoy-button fill="text" size="sm" class="p-16px" (click)="dialog.nativeElement.showModal()">
+							<button [disabled]="!instanceAdmin()" convoy-dropdown-option convoy-button fill="text" size="sm" class="p-16px" (click)="dialog.nativeElement.showModal()">
 								<img src="/assets/img/add-circlar-icon.svg" alt="add icon" class="mr-8px" />
 								Add {{ organisations?.length ? 'another' : 'an' }} Organization
 							</button>
@@ -130,7 +130,7 @@
 
 			<form [formGroup]="addOrganisationForm" (ngSubmit)="addNewOrganisation()">
 				<convoy-input-field>
-					<label for="name" required="true" convoy-label>What's your bussiness name?</label>
+					<label for="name" required="true" convoy-label>What's your business name?</label>
 					<input id="name" convoy-input autocomplete="name" formControlName="name" placeholder="e.g. Kuda" />
 					<convoy-input-error *ngIf="addOrganisationForm.get('name')?.touched && addOrganisationForm.get('name')?.invalid">Organisation name is required</convoy-input-error>
 				</convoy-input-field>

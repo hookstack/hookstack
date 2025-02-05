@@ -322,7 +322,7 @@ func StartWorker(ctx context.Context, a *cli.App, cfg config.Configuration, inte
 			lo.WithError(err).Fatal("Failed to create circuit breaker manager")
 		}
 
-		go circuitBreakerManager.Start(ctx, attemptRepo.GetFailureAndSuccessCounts)
+		go circuitBreakerManager.Start(ctx, cfg.InstanceCfgCacheTimeout, attemptRepo.GetFailureAndSuccessCounts, projectRepo.FetchCircuitBreakerConfigsFromProjects)
 	} else {
 		lo.Warn(fflag.ErrCircuitBreakerNotEnabled)
 	}

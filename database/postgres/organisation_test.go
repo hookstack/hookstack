@@ -157,7 +157,20 @@ func TestFetchOrganisationByID(t *testing.T) {
 	dbOrg.CreatedAt = time.Time{}
 	dbOrg.UpdatedAt = time.Time{}
 
+	dbOrg.Config = nil
+
 	require.Equal(t, org, dbOrg)
+}
+
+func TestFetchOrganisationByProjectID(t *testing.T) {
+	db, closeFn := getDB(t)
+	defer closeFn()
+
+	orgRepo := NewOrgRepo(db)
+
+	p := seedProject(t, db)
+	_, err := orgRepo.FetchOrganisationByProjectID(context.Background(), p.UID)
+	require.NoError(t, err)
 }
 
 func TestFetchOrganisationByAssignedDomain(t *testing.T) {
